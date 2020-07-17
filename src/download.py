@@ -1,7 +1,11 @@
 import time 
 import os
+import sys
 import argparse
+import urlparse
 import json
+import sqlite3
+import requests
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -24,6 +28,15 @@ if (args.url_list or args.keywords) and args.save_dir:
     timeout = 1
 
     load_dotenv()
+
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    # Create table
+    c.execute('''CREATE TABLE IF NOT EXISTS urls
+            (url_id integer primary key AUTOINCREMENT,
+            url varchar(255) NOT NULL)''')
+    conn.commit()
 
     capabilities = webdriver.common.desired_capabilities.DesiredCapabilities.CHROME.copy()
     capabilities['javascriptEnabled'] = True
@@ -69,10 +82,25 @@ if (args.url_list or args.keywords) and args.save_dir:
                 items = articles.find_elements_by_xpath('//a[contains(@href,"/p/")]')
                 # Loop trough found items
                 for item in items:
-                    print("\n")
-                    print(item.find_element_by_tag_name('img').get_attribute('src'))
-                    print(item.get_attribute('href'))
+                    url = item.get_attribute('href')
+                    c.execute("SELECT * FROM urls WHERE url=?", (url,))
+                    databse_url = c.fetchone()
+                    if databse_url is None:
+                        # Download image
+                        my_folder = args.save_dir
+                        if not os.path.exists(my_folder):
+                            os.makedirs(my_folder)
+                        image_url = item.find_element_by_tag_name('img').get_attribute('src')
+                        parsed_url = urlparse.urlparse(image_url)
+                        image_name = os.path.basename(parsed_url.path)
+                        img_data = requests.get(image_url).content
+                        with open(my_folder + image_name, 'wb') as handler:
+                            handler.write(img_data)
+                        # Insert image into sqlite3, so we do not download it again
+                        c.execute("INSERT INTO urls ('url') VALUES ('" + item.get_attribute('href') + "')")
+                        conn.commit()
             except TimeoutException:
                 pass
 
+    conn.close()
     driver.quit()
