@@ -67,7 +67,10 @@ if (args.url_list or args.keywords) and args.save_dir:
                 )
                 articles = driver.find_element_by_tag_name('article')
                 items = articles.find_elements_by_xpath('//a[contains(@href,"/p/")]')
+                # Loop trough found items
                 for item in items:
+                    print("\n")
+                    print(item.find_element_by_tag_name('img').get_attribute('src'))
                     print(item.get_attribute('href'))
             except TimeoutException:
                 pass
