@@ -2,7 +2,10 @@ import time
 import os
 import sys
 import argparse
-import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 import json
 import sqlite3
 import requests
@@ -91,7 +94,7 @@ if (args.url_list or args.keywords) and args.save_dir:
                         if not os.path.exists(my_folder):
                             os.makedirs(my_folder)
                         image_url = item.find_element_by_tag_name('img').get_attribute('src')
-                        parsed_url = urlparse.urlparse(image_url)
+                        parsed_url = urlparse(image_url)
                         image_name = os.path.basename(parsed_url.path)
                         img_data = requests.get(image_url).content
                         with open(my_folder + image_name, 'wb') as handler:
