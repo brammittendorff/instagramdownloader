@@ -1,0 +1,13 @@
+version: "3.2"
+services:
+  selenium-hub:
+    container_name: selenium-hub
+    image: selenium/standalone-chrome-debug
+    volumes:
+      - /dev/shm:/dev/shm
+    ports:
+      - "4444:4444"
+      - "5900:5900"
+    environment:
+      - HUB_HOST=selenium-hub
+      - HUB_PORT=4444
