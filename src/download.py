@@ -1,4 +1,5 @@
 import time 
+import glob
 import os
 import sys
 import argparse
@@ -19,14 +20,20 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
+def dir_path(path):
+    if os.path.isdir(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(f"readable_dir:{path} is not a valid path")
+
 parser = argparse.ArgumentParser(description='Json downloader for instagram')
-parser.add_argument('-l', '--url-list', metavar='file', type=argparse.FileType('r'), help='you can load urls to scrape', nargs='?')
-parser.add_argument('-k', '--keywords', help='keyword seperated by comma e.g. cars,boats', nargs='?')
 parser.add_argument('-s', '--save-dir', help='the dir to write save the images', nargs='?', required=True)
+parser.add_argument('-d', '--url-list-dir', type=dir_path, help='select the folder to load *.txt files from', nargs='?')
+parser.add_argument('-k', '--keywords', help='keyword seperated by comma e.g. cars,boats', nargs='?')
 
 args = parser.parse_args()
 
-if (args.url_list or args.keywords) and args.save_dir:
+if (args.url_list_dir or args.keywords) and args.save_dir:
 
     timeout = 1
 
@@ -73,7 +80,7 @@ if (args.url_list or args.keywords) and args.save_dir:
     except TimeoutException:
         pass
 
-    # Scrape by keywords
+    # Scrape by hashtags
     if args.keywords:
         keywords = args.keywords.split(',')
         for word in keywords:
@@ -105,6 +112,16 @@ if (args.url_list or args.keywords) and args.save_dir:
                         conn.commit()
             except TimeoutException:
                 pass
+
+    # Scrape by lists/*.txt
+    if args.url_list_dir:
+        os.chdir(args.url_list_dir)
+        for filename in glob.glob("*.txt"):
+            with open(filename) as fp:
+                line = fp.readline()
+                while line:
+                    driver.get(line.strip())
+                    line = fp.readline()
 
     conn.close()
     driver.quit()
