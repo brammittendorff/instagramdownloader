@@ -38,6 +38,7 @@ if (args.url_list or args.keywords) and args.save_dir:
     # Create table
     c.execute('''CREATE TABLE IF NOT EXISTS urls
             (url_id integer primary key AUTOINCREMENT,
+            image_name varchar(255) NOT NULL,
             url varchar(255) NOT NULL)''')
     conn.commit()
 
@@ -100,7 +101,7 @@ if (args.url_list or args.keywords) and args.save_dir:
                         with open(my_folder + image_name, 'wb') as handler:
                             handler.write(img_data)
                         # Insert image into sqlite3, so we do not download it again
-                        c.execute("INSERT INTO urls ('url') VALUES ('" + item.get_attribute('href') + "')")
+                        c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + item.get_attribute('href') + "', '" + image_name + "')")
                         conn.commit()
             except TimeoutException:
                 pass
