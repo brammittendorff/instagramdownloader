@@ -1,6 +1,7 @@
 import time 
 import glob
 import os
+import math
 import tempfile
 import shutil
 import atexit
@@ -65,6 +66,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
     capabilities['javascriptEnabled'] = True
 
     options = webdriver.ChromeOptions()
+    options.add_experimental_option("excludeSwitches", ['enable-automation'])
     options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/75.0.3770.90 Chrome/75.0.3770.90 Safari/537.36')
 
     driver = webdriver.Remote(
@@ -94,11 +96,32 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
     
     time.sleep(2)
 
+    def download_image(url, image_url):
+        c.execute("SELECT * FROM urls WHERE url=?", (url,))
+        databse_url = c.fetchone()
+        if databse_url is None:
+            # Download image
+            print("Downloading url: {}".format(url))
+            my_folder = args.save_dir
+            if not os.path.exists(my_folder):
+                os.makedirs(my_folder)
+            parsed_url = urlparse(image_url)
+            image_name = os.path.basename(parsed_url.path)
+            img_data = requests.get(image_url).content
+            with open(my_folder + image_name, 'wb') as handler:
+                handler.write(img_data)
+            # Insert image into sqlite3, so we do not download it again
+            c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('{}', '{}')".format(url, image_name))
+            conn.commit()
+            return True
+        else:
+            return False
+
     # Scrape by hashtags
     if args.keywords:
         keywords = args.keywords.split(',')
         for word in keywords:
-            driver.get('https://www.instagram.com/explore/tags/' + word + '/')
+            driver.get("https://www.instagram.com/explore/tags/{}/".format(word))
             try:
                 element = WebDriverWait(driver, timeout).until(
                     EC.element_to_be_clickable((By.TAG_NAME, 'article'))
@@ -108,23 +131,9 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                 # Loop trough found items
                 for item in items:
                     url = item.get_attribute('href')
-                    c.execute("SELECT * FROM urls WHERE url=?", (url,))
-                    databse_url = c.fetchone()
-                    if databse_url is None:
-                        # Download image
+                    image_url = item.find_element_by_tag_name('img').get_attribute('src')
+                    if download_image(url, image_url):
                         print("Downloading url: {}".format(url))
-                        my_folder = args.save_dir
-                        if not os.path.exists(my_folder):
-                            os.makedirs(my_folder)
-                        image_url = item.find_element_by_tag_name('img').get_attribute('src')
-                        parsed_url = urlparse(image_url)
-                        image_name = os.path.basename(parsed_url.path)
-                        img_data = requests.get(image_url).content
-                        with open(my_folder + image_name, 'wb') as handler:
-                            handler.write(img_data)
-                        # Insert image into sqlite3, so we do not download it again
-                        c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + url + "', '" + image_name + "')")
-                        conn.commit()
                     else:
                         print("Already downloaded url: {}".format(url))
             except TimeoutException:
@@ -148,6 +157,8 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                             EC.element_to_be_clickable((By.CLASS_NAME, 'error-container'))
                         )
                         error_times += 1
+                        error_minutes = math.ceil((60 * error_times)/60)
+                        print("Sleeping for a while because we need to wait a few minutes: {}".format(error_minutes))
                         time.sleep(60*error_times)
                     except TimeoutException:
                         pass
@@ -169,24 +180,9 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                         if user_media.get("edges"):
                                             for node in user_media["edges"]:
                                                 url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
-                                                c.execute("SELECT * FROM urls WHERE url=?", (url,))
-                                                databse_url = c.fetchone()
-                                                if databse_url is None:
-                                                    # Download image
+                                                image_url = node['node']["display_url"]
+                                                if download_image(url, image_url):
                                                     print("Downloading url: {}".format(url))
-                                                    os.chdir(retval)
-                                                    my_folder = args.save_dir
-                                                    if not os.path.exists(my_folder):
-                                                        os.makedirs(my_folder)
-                                                    image_url = node['node']["display_url"]
-                                                    parsed_url = urlparse(image_url)
-                                                    image_name = os.path.basename(parsed_url.path)
-                                                    img_data = requests.get(image_url).content
-                                                    with open(my_folder + image_name, 'wb') as handler:
-                                                        handler.write(img_data)
-                                                    # Insert image into sqlite3, so we do not download it again
-                                                    c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + url + "', '" + image_name + "')")
-                                                    conn.commit()
                                                 else:
                                                     print("Already downloaded url: {}".format(url))
                     except TimeoutException:
