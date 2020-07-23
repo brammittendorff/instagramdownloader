@@ -1,6 +1,9 @@
 import time 
 import glob
 import os
+import tempfile
+import shutil
+import atexit
 import sys
 import argparse
 try:
@@ -20,15 +23,23 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-def dir_path(path):
-    if os.path.isdir(path):
-        return path
-    else:
-        raise argparse.ArgumentTypeError(f"readable_dir:{path} is not a valid path")
+# Directory check for argparse
+class readable_dir(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        prospective_dir=values
+        if not os.path.isdir(prospective_dir):
+            raise argparse.ArgumentTypeError("readable_dir:{0} is not a valid path".format(prospective_dir))
+        if os.access(prospective_dir, os.R_OK):
+            setattr(namespace,self.dest,prospective_dir)
+        else:
+            raise argparse.ArgumentTypeError("readable_dir:{0} is not a readable dir".format(prospective_dir))
+
+ldir = tempfile.mkdtemp()
+atexit.register(lambda dir=ldir: shutil.rmtree(ldir))
 
 parser = argparse.ArgumentParser(description='Json downloader for instagram')
 parser.add_argument('-s', '--save-dir', help='the dir to write save the images', nargs='?', required=True)
-parser.add_argument('-d', '--url-list-dir', type=dir_path, help='select the folder to load *.txt files from', nargs='?')
+parser.add_argument('-d', '--url-list-dir', action=readable_dir, default=ldir, nargs='?')
 parser.add_argument('-k', '--keywords', help='keyword seperated by comma e.g. cars,boats', nargs='?')
 
 args = parser.parse_args()
@@ -108,19 +119,57 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                         with open(my_folder + image_name, 'wb') as handler:
                             handler.write(img_data)
                         # Insert image into sqlite3, so we do not download it again
-                        c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + item.get_attribute('href') + "', '" + image_name + "')")
+                        c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + url + "', '" + image_name + "')")
                         conn.commit()
             except TimeoutException:
                 pass
 
-    # Scrape by lists/*.txt
+    # Scrape by <folder>/*.txt
     if args.url_list_dir:
+        retval = os.getcwd()
         os.chdir(args.url_list_dir)
         for filename in glob.glob("*.txt"):
             with open(filename) as fp:
                 line = fp.readline()
                 while line:
                     driver.get(line.strip())
+                    try:
+                        element = WebDriverWait(driver, timeout).until(
+                            EC.element_to_be_clickable((By.TAG_NAME, 'article'))
+                        )
+                        source = driver.page_source
+
+                        # Get json data
+                        if source:
+                            strip1 = source.split(r'window._sharedData = ')
+                            if len(strip1) > 1:
+                                strip2 = strip1[1].split(r";</script>")
+                                if strip2[0]:
+                                    page_json = strip2[0]
+                                    for json_object in json.loads(page_json)["entry_data"]["ProfilePage"]:
+                                        user_media = json_object['graphql']['user']['edge_owner_to_timeline_media']
+                                        if user_media.get("edges"):
+                                            for node in user_media["edges"]:
+                                                url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
+                                                c.execute("SELECT * FROM urls WHERE url=?", (url,))
+                                                databse_url = c.fetchone()
+                                                if databse_url is None:
+                                                    # Download image
+                                                    os.chdir(retval)
+                                                    my_folder = args.save_dir
+                                                    if not os.path.exists(my_folder):
+                                                        os.makedirs(my_folder)
+                                                    image_url = node['node']["display_url"]
+                                                    parsed_url = urlparse(image_url)
+                                                    image_name = os.path.basename(parsed_url.path)
+                                                    img_data = requests.get(image_url).content
+                                                    with open(my_folder + image_name, 'wb') as handler:
+                                                        handler.write(img_data)
+                                                    # Insert image into sqlite3, so we do not download it again
+                                                    c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + url + "', '" + image_name + "')")
+                                                    conn.commit()
+                    except TimeoutException:
+                        pass
                     line = fp.readline()
 
     conn.close()
