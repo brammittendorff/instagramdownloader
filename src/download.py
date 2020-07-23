@@ -109,6 +109,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                     databse_url = c.fetchone()
                     if databse_url is None:
                         # Download image
+                        print("Downloading url: {}".format(url))
                         my_folder = args.save_dir
                         if not os.path.exists(my_folder):
                             os.makedirs(my_folder)
@@ -121,6 +122,8 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                         # Insert image into sqlite3, so we do not download it again
                         c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + url + "', '" + image_name + "')")
                         conn.commit()
+                    else:
+                        print("Already downloaded url: {}".format(url))
             except TimeoutException:
                 pass
 
@@ -155,6 +158,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                                 databse_url = c.fetchone()
                                                 if databse_url is None:
                                                     # Download image
+                                                    print("Downloading url: {}".format(url))
                                                     os.chdir(retval)
                                                     my_folder = args.save_dir
                                                     if not os.path.exists(my_folder):
@@ -168,6 +172,8 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                                     # Insert image into sqlite3, so we do not download it again
                                                     c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('" + url + "', '" + image_name + "')")
                                                     conn.commit()
+                                                else:
+                                                    print("Already downloaded url: {}".format(url))
                     except TimeoutException:
                         pass
                     line = fp.readline()
