@@ -47,6 +47,7 @@ args = parser.parse_args()
 if (args.url_list_dir or args.keywords) and args.save_dir:
 
     timeout = 1
+    error_times = 0
 
     load_dotenv()
 
@@ -139,8 +140,17 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                 while line:
                     # Needs this sleep because instagram doesn't like fast crawlers
                     # they will log you out automaticly
-                    time.sleep(1)
+                    time.sleep(2)
                     driver.get(line.strip())
+                    # If you got an error-container "Please wait a few minutes before you try again."
+                    try:
+                        element = WebDriverWait(driver, timeout).until(
+                            EC.element_to_be_clickable((By.CLASS_NAME, 'error-container'))
+                        )
+                        error_times += 1
+                        time.sleep(60*error_times)
+                    except TimeoutException:
+                        pass
                     try:
                         element = WebDriverWait(driver, timeout).until(
                             EC.element_to_be_clickable((By.TAG_NAME, 'article'))
