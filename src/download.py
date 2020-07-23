@@ -90,6 +90,8 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
         form_submit.click()
     except TimeoutException:
         pass
+    
+    time.sleep(2)
 
     # Scrape by hashtags
     if args.keywords:
@@ -135,6 +137,9 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
             with open(filename) as fp:
                 line = fp.readline()
                 while line:
+                    # Needs this sleep because instagram doesn't like fast crawlers
+                    # they will log you out automaticly
+                    time.sleep(1)
                     driver.get(line.strip())
                     try:
                         element = WebDriverWait(driver, timeout).until(
