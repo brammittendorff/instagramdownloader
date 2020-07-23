@@ -24,6 +24,27 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
+def download_image(url, image_url):
+    c.execute("SELECT * FROM urls WHERE url=?", (url,))
+    databse_url = c.fetchone()
+    if databse_url is None:
+        # Download image
+        print("Downloading url: {}".format(url))
+        my_folder = args.save_dir
+        if not os.path.exists(my_folder):
+            os.makedirs(my_folder)
+        parsed_url = urlparse(image_url)
+        image_name = os.path.basename(parsed_url.path)
+        img_data = requests.get(image_url).content
+        with open(my_folder + image_name, 'wb') as handler:
+            handler.write(img_data)
+        # Insert image into sqlite3, so we do not download it again
+        c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('{}', '{}')".format(url, image_name))
+        conn.commit()
+        return True
+    else:
+        return False
+
 # Directory check for argparse
 class readable_dir(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -96,27 +117,6 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
     
     time.sleep(2)
 
-    def download_image(url, image_url):
-        c.execute("SELECT * FROM urls WHERE url=?", (url,))
-        databse_url = c.fetchone()
-        if databse_url is None:
-            # Download image
-            print("Downloading url: {}".format(url))
-            my_folder = args.save_dir
-            if not os.path.exists(my_folder):
-                os.makedirs(my_folder)
-            parsed_url = urlparse(image_url)
-            image_name = os.path.basename(parsed_url.path)
-            img_data = requests.get(image_url).content
-            with open(my_folder + image_name, 'wb') as handler:
-                handler.write(img_data)
-            # Insert image into sqlite3, so we do not download it again
-            c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('{}', '{}')".format(url, image_name))
-            conn.commit()
-            return True
-        else:
-            return False
-
     # Scrape by hashtags
     if args.keywords:
         keywords = args.keywords.split(',')
@@ -130,6 +130,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                 items = articles.find_elements_by_xpath('//a[contains(@href,"/p/")]')
                 # Loop trough found items
                 for item in items:
+                    print(item.find_element_by_tag_name('img').get_attribute('src'))
                     url = item.get_attribute('href')
                     image_url = item.find_element_by_tag_name('img').get_attribute('src')
                     if download_image(url, image_url):
@@ -149,7 +150,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                 while line:
                     # Needs this sleep because instagram doesn't like fast crawlers
                     # they will log you out automaticly
-                    time.sleep(2)
+                    time.sleep(1)
                     driver.get(line.strip())
                     # If you got an error-container "Please wait a few minutes before you try again."
                     try:
@@ -167,7 +168,6 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                             EC.element_to_be_clickable((By.TAG_NAME, 'article'))
                         )
                         source = driver.page_source
-
                         # Get json data
                         if source:
                             strip1 = source.split(r'window._sharedData = ')
@@ -179,6 +179,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                         user_media = json_object['graphql']['user']['edge_owner_to_timeline_media']
                                         if user_media.get("edges"):
                                             for node in user_media["edges"]:
+                                                time.sleep(0.5)
                                                 url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
                                                 image_url = node['node']["display_url"]
                                                 if download_image(url, image_url):
