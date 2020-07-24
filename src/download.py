@@ -102,6 +102,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
 
     # Login
     driver.get('https://www.instagram.com')
+    driver.maximize_window()
     try:
         element = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.TAG_NAME, 'form'))
