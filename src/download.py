@@ -127,6 +127,9 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
         keywords = args.keywords.split(',')
         for word in keywords:
             driver.get("https://www.instagram.com/explore/tags/{}/".format(word))
+            body = driver.find_element_by_css_selector('body')
+            body.click()
+            body.send_keys(Keys.PAGE_DOWN)
             try:
                 element = WebDriverWait(driver, timeout).until(
                     EC.element_to_be_clickable((By.TAG_NAME, 'article'))
@@ -157,6 +160,9 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                     # they will log you out automaticly
                     time.sleep(1)
                     driver.get(line.strip())
+                    body = driver.find_element_by_css_selector('body')
+                    body.click()
+                    body.send_keys(Keys.PAGE_DOWN)
                     # If you got an error-container "Please wait a few minutes before you try again."
                     try:
                         element = WebDriverWait(driver, timeout).until(
@@ -186,7 +192,8 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                         user_media = json_object['graphql']['user']['edge_owner_to_timeline_media']
                                         if user_media.get("edges"):
                                             for node in user_media["edges"]:
-                                                time.sleep(0.5)
+                                                # Do not request urls to fast
+                                                time.sleep(0.1)
                                                 url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
                                                 image_url = node['node']["display_url"]
                                                 if download_image(url, image_url):
