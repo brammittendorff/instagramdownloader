@@ -1,11 +1,11 @@
+import os
+import sys
 import time 
 import glob
-import os
 import math
 import tempfile
 import shutil
 import atexit
-import sys
 import argparse
 try:
     from urllib.parse import urlparse
@@ -58,6 +58,10 @@ class readable_dir(argparse.Action):
 
 ldir = tempfile.mkdtemp()
 atexit.register(lambda dir=ldir: shutil.rmtree(ldir))
+
+array_error = [
+    "Sorry, this page isn't available."
+]
 
 parser = argparse.ArgumentParser(description='Json downloader for instagram')
 parser.add_argument('-s', '--save-dir', help='the dir to write save the images', nargs='?', required=True)
@@ -157,10 +161,12 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                         element = WebDriverWait(driver, timeout).until(
                             EC.element_to_be_clickable((By.CLASS_NAME, 'error-container'))
                         )
-                        error_times += 1
-                        error_minutes = math.ceil((60 * error_times)/60)
-                        print("Sleeping for a while because we need to wait a few minutes: {}".format(error_minutes))
-                        time.sleep(60*error_times)
+                        error_h2 = driver.find_element(By.CSS_SELECTOR, '.error-container h2')
+                        if error_h2.text not in array_error:
+                            error_times += 1
+                            error_minutes = math.ceil((60 * error_times)/60)
+                            print("Sleeping for a while because we need to wait a few minutes: {}".format(error_minutes))
+                            time.sleep(60*error_times)
                     except TimeoutException:
                         pass
                     try:
