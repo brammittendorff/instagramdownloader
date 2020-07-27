@@ -193,7 +193,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                         if user_media.get("edges"):
                                             for node in user_media["edges"]:
                                                 # Do not request urls to fast
-                                                time.sleep(0.4)
+                                                time.sleep(0.5)
                                                 url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
                                                 image_url = node['node']["display_url"]
                                                 if download_image(url, image_url):
