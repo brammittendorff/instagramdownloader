@@ -92,7 +92,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
 
     options = webdriver.ChromeOptions()
     options.add_experimental_option("excludeSwitches", ['enable-automation'])
-    options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/75.0.3770.90 Chrome/75.0.3770.90 Safari/537.36')
+    options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/83.0.4103.61 Chrome/83.0.4103.61 Safari/537.36')
 
     driver = webdriver.Remote(
         command_executor = 'http://localhost:4444/wd/hub',
