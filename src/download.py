@@ -14,6 +14,7 @@ except ImportError:
 import json
 import sqlite3
 import requests
+
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -23,6 +24,8 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+
+from classify import classify_image
 
 def download_image(url, image_url):
     c.execute("SELECT * FROM urls WHERE url=?", (url,))
@@ -40,6 +43,10 @@ def download_image(url, image_url):
             handler.write(img_data)
         # Insert image into sqlite3, so we do not download it again
         c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('{}', '{}')".format(url, image_name))
+        # Classify image
+        classified_image = classify_image(my_folder + image_name)
+        if classified_image:
+            c.execute("INSERT INTO classified ('url_id', 'gender', 'gender_conf', 'age', 'age_conf') VALUES ({}, {}, '{}', {}, '{}')".format(c.lastrowid, classified_image['gender'], classified_image['genderprediction'], classified_image['age'], classified_image['ageprediction']))
         conn.commit()
         return True
     else:
@@ -80,11 +87,19 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
 
-    # Create table
+    # Create urls table
     c.execute('''CREATE TABLE IF NOT EXISTS urls
             (url_id integer primary key AUTOINCREMENT,
             image_name varchar(255) NOT NULL,
             url varchar(255) NOT NULL)''')
+    # Create classified table
+    c.execute('''CREATE TABLE IF NOT EXISTS classified
+            (classiefied_id integer primary key AUTOINCREMENT,
+            url_id integer NOT NULL,
+            gender integer NOT NULL,
+            gender_conf decimal(10, 5) NOT NULL,
+            age integer NOT NULL,
+            age_conf decimal(10, 5) NOT NULL)''')
     conn.commit()
 
     capabilities = webdriver.common.desired_capabilities.DesiredCapabilities.CHROME.copy()

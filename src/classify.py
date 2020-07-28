@@ -47,9 +47,12 @@ def classify_image(current_image):
     genderNet = cv.dnn.readNet(genderModel, genderProto)
     faceNet = cv.dnn.readNet(faceModel, faceProto)
 
+    # Load values adjusted to the model
     MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
-    ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
-    genderList = ['Male', 'Female']
+    # ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
+    ageList = [1, 2, 3, 4, 5, 6, 7, 8]
+    # genderList = ['Male', 'Female']
+    genderList = [1, 2]
     padding = 20
 
     frame = cv.imread(current_image, 1)
@@ -59,25 +62,27 @@ def classify_image(current_image):
 
     if not bboxes:
         return False
+    else:
+        faces = {}
+        for bbox in bboxes:
+            # Load face with padding
+            face = frame[max(0,bbox[1]-padding):min(bbox[3]+padding,frame.shape[0]-1),max(0,bbox[0]-padding):min(bbox[2]+padding, frame.shape[1]-1)]
 
-    for bbox in bboxes:
-        # Load face with padding
-        face = frame[max(0,bbox[1]-padding):min(bbox[3]+padding,frame.shape[0]-1),max(0,bbox[0]-padding):min(bbox[2]+padding, frame.shape[1]-1)]
+            blob = cv.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
 
-        blob = cv.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
+            # Classify Gender
+            genderNet.setInput(blob)
+            genderPreds = genderNet.forward()
+            gender = genderList[genderPreds[0].argmax()]
+            # print('Gender : {}, conf = {:.3f}'.format(gender, genderPreds[0].max()))
+            faces['gender'] = gender
+            faces['genderprediction'] = genderPreds[0].max()
 
-        # Classify Gender
-        genderNet.setInput(blob)
-        genderPreds = genderNet.forward()
-        gender = genderList[genderPreds[0].argmax()]
-        print('Gender : {}, conf = {:.3f}'.format(gender, genderPreds[0].max()))
-
-        #Classify Age
-        ageNet.setInput(blob)
-        agePreds = ageNet.forward()
-        age = ageList[agePreds[0].argmax()]
-        print('Age : {}, conf = {:.3f}'.format(age, agePreds[0].max()))
-    
-    print('Identified faces: {}'.format(len(bboxes)))
-
-classify_image('./images/31666593_860510257482502_6834320332703137792_n.jpg')
+            #Classify Age
+            ageNet.setInput(blob)
+            agePreds = ageNet.forward()
+            age = ageList[agePreds[0].argmax()]
+            # print('Age : {}, conf = {:.3f}'.format(age, agePreds[0].max()))
+            faces['age'] = age
+            faces['ageprediction'] = agePreds[0].max()
+        return faces
