@@ -2,3 +2,4 @@
 database.db
 images/
 lists/*.txt
+models/*
