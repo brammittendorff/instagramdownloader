@@ -211,6 +211,7 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                                 time.sleep(0.5)
                                                 url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
                                                 image_url = node['node']["display_url"]
+                                                os.chdir(retval)
                                                 if download_image(url, image_url):
                                                     print("Downloading url: {}".format(url))
                                                 else:

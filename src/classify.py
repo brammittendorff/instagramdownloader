@@ -32,8 +32,6 @@ def getFaceBox(net, frame, conf_threshold=0.7):
     return frameOpencvDnn, bboxes
 
 def classify_image(current_image):
-    retval = os.getcwd()
-
     # Location of models and protos
     faceProto = 'models/opencv_face_detector.pbtxt'
     faceModel = 'models/opencv_face_detector_uint8.pb'
