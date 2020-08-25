@@ -58,3 +58,11 @@ When you want to search lists you can put the lists in folder lists/*.txt and ex
 ```
 python src/download.py -d lists/ -s images/
 ```
+
+### Download by hashtag and classify at the same time
+
+To search by hashtag and classify gender and keep only those images please execute
+
+```
+python src/download.py -k girl,girls -s images/ -g female
+```

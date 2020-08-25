@@ -41,6 +41,7 @@ def download_image(url, image_url):
         img_data = requests.get(image_url).content
         with open(my_folder + image_name, 'wb') as handler:
             handler.write(img_data)
+        time.sleep(0.2)
         # Insert image into sqlite3, so we do not download it again
         c.execute("INSERT INTO urls ('url', 'image_name') VALUES ('{}', '{}')".format(url, image_name))
         # Classify image
@@ -74,33 +75,37 @@ parser = argparse.ArgumentParser(description='Json downloader for instagram')
 parser.add_argument('-s', '--save-dir', help='the dir to write save the images', nargs='?', required=True)
 parser.add_argument('-d', '--url-list-dir', action=readable_dir, default=ldir, nargs='?')
 parser.add_argument('-k', '--keywords', help='keyword seperated by comma e.g. cars,boats', nargs='?')
+parser.add_argument('-a', '--classify-age', help='Keep images that classify age x on image', nargs='?')
+parser.add_argument('-ac', '--age-confidence', help='Keep images that classify x confidence age on image', nargs='?')
+parser.add_argument('-g', '--classify-gender', help='Keep images that classify gender (male/female) on image', nargs='?')
+parser.add_argument('-gc', '--gender-confidence', help='Keep images that classify x confidence gender on image', nargs='?')
 
 args = parser.parse_args()
+
+load_dotenv()
+
+conn = sqlite3.connect('database.db')
+c = conn.cursor()
+
+# Create urls table
+c.execute('''CREATE TABLE IF NOT EXISTS urls
+        (url_id integer primary key AUTOINCREMENT,
+        image_name varchar(255) NOT NULL,
+        url varchar(255) NOT NULL)''')
+# Create classified table
+c.execute('''CREATE TABLE IF NOT EXISTS classified
+        (classiefied_id integer primary key AUTOINCREMENT,
+        url_id integer NOT NULL,
+        gender integer NOT NULL,
+        gender_conf decimal(10, 5) NOT NULL,
+        age integer NOT NULL,
+        age_conf decimal(10, 5) NOT NULL)''')
+conn.commit()
 
 if (args.url_list_dir or args.keywords) and args.save_dir:
 
     timeout = 1
     error_times = 0
-
-    load_dotenv()
-
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    # Create urls table
-    c.execute('''CREATE TABLE IF NOT EXISTS urls
-            (url_id integer primary key AUTOINCREMENT,
-            image_name varchar(255) NOT NULL,
-            url varchar(255) NOT NULL)''')
-    # Create classified table
-    c.execute('''CREATE TABLE IF NOT EXISTS classified
-            (classiefied_id integer primary key AUTOINCREMENT,
-            url_id integer NOT NULL,
-            gender integer NOT NULL,
-            gender_conf decimal(10, 5) NOT NULL,
-            age integer NOT NULL,
-            age_conf decimal(10, 5) NOT NULL)''')
-    conn.commit()
 
     capabilities = webdriver.common.desired_capabilities.DesiredCapabilities.CHROME.copy()
     capabilities['javascriptEnabled'] = True
@@ -219,6 +224,44 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                     except TimeoutException:
                         pass
                     line = fp.readline()
-
-    conn.close()
     driver.quit()
+
+def delete_url(conn, id):
+    c = conn.cursor()
+    c.execute("DELETE FROM urls WHERE url_id=?", (id,))
+    conn.commit()
+
+def delete_classified(conn, id):
+    c = conn.cursor()
+    c.execute("DELETE FROM classified WHERE url_id=?", (id,))
+    conn.commit()
+
+if (args.classify_age or args.age_confidence or args.classify_gender or args.gender_confidence) and args.save_dir:
+    os.chdir(retval)
+    gender = {}
+    gender['male'] = 1
+    gender['female'] = 2
+    my_folder = args.save_dir
+    os.chdir(my_folder)
+    if args.classify_gender:
+        # Classify gender
+        for glob_name in glob.glob('*'):
+            c.execute('''SELECT * FROM urls LEFT JOIN classified ON urls.url_id = classified.url_id WHERE image_name=?''', (glob_name,))
+            current_url = c.fetchone()
+            if current_url is None:
+                # The image is not present in the database
+                os.remove(glob_name)
+                print("Deleted file because it is not in the database {}".format(glob_name))
+            elif current_url[3] is None:
+                # The image is not classified
+                delete_url(conn, current_url[0])
+                os.remove(glob_name)
+                print("Deleted file because it is not classified {}".format(glob_name))
+            elif current_url[5] != gender[args.classify_gender]:
+                # The image does not matches the gender specified
+                delete_url(conn, current_url[0])
+                delete_classified(conn, current_url[0])
+                os.remove(glob_name)
+                print("Deleted file because it does not match the gender {}".format(glob_name))
+
+conn.close()
