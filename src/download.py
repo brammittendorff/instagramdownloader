@@ -212,12 +212,12 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
                                         user_media = json_object['graphql']['user']['edge_owner_to_timeline_media']
                                         if user_media.get("edges"):
                                             for node in user_media["edges"]:
-                                                # Do not request urls to fast
-                                                time.sleep(0.5)
                                                 url = "https://instagram.com/p/{}/".format(node['node']["shortcode"])
                                                 image_url = node['node']["display_url"]
                                                 os.chdir(retval)
                                                 if download_image(url, image_url):
+                                                    # Do not request urls to fast
+                                                    time.sleep(0.5)
                                                     print("Downloading url: {}".format(url))
                                                 else:
                                                     print("Already downloaded url: {}".format(url))

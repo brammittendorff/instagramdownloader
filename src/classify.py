@@ -66,21 +66,24 @@ def classify_image(current_image):
             # Load face with padding
             face = frame[max(0,bbox[1]-padding):min(bbox[3]+padding,frame.shape[0]-1),max(0,bbox[0]-padding):min(bbox[2]+padding, frame.shape[1]-1)]
 
-            blob = cv.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
+            try:
+                blob = cv.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
 
-            # Classify Gender
-            genderNet.setInput(blob)
-            genderPreds = genderNet.forward()
-            gender = genderList[genderPreds[0].argmax()]
-            # print('Gender : {}, conf = {:.3f}'.format(gender, genderPreds[0].max()))
-            faces['gender'] = gender
-            faces['genderprediction'] = genderPreds[0].max()
+                # Classify Gender
+                genderNet.setInput(blob)
+                genderPreds = genderNet.forward()
+                gender = genderList[genderPreds[0].argmax()]
+                # print('Gender : {}, conf = {:.3f}'.format(gender, genderPreds[0].max()))
+                faces['gender'] = gender
+                faces['genderprediction'] = genderPreds[0].max()
 
-            #Classify Age
-            ageNet.setInput(blob)
-            agePreds = ageNet.forward()
-            age = ageList[agePreds[0].argmax()]
-            # print('Age : {}, conf = {:.3f}'.format(age, agePreds[0].max()))
-            faces['age'] = age
-            faces['ageprediction'] = agePreds[0].max()
+                #Classify Age
+                ageNet.setInput(blob)
+                agePreds = ageNet.forward()
+                age = ageList[agePreds[0].argmax()]
+                # print('Age : {}, conf = {:.3f}'.format(age, agePreds[0].max()))
+                faces['age'] = age
+                faces['ageprediction'] = agePreds[0].max()
+            except Exception as e:
+                pass
         return faces
