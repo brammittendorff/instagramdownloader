@@ -247,21 +247,22 @@ if (args.classify_age or args.age_confidence or args.classify_gender or args.gen
         # Classify gender
         for glob_name in glob.glob('*'):
             c.execute('''SELECT * FROM urls LEFT JOIN classified ON urls.url_id = classified.url_id WHERE image_name=?''', (glob_name,))
-            current_url = c.fetchone()
-            if current_url is None:
-                # The image is not present in the database
-                os.remove(glob_name)
-                print("Deleted file because it is not in the database {}".format(glob_name))
-            elif current_url[3] is None:
-                # The image is not classified
-                delete_url(conn, current_url[0])
-                os.remove(glob_name)
-                print("Deleted file because it is not classified {}".format(glob_name))
-            elif current_url[5] != gender[args.classify_gender]:
-                # The image does not matches the gender specified
-                delete_url(conn, current_url[0])
-                delete_classified(conn, current_url[0])
-                os.remove(glob_name)
-                print("Deleted file because it does not match the gender {}".format(glob_name))
+            current_urls = c.fetchall()
+            for current_url in current_urls:
+                if current_url is None:
+                    # The image is not present in the database
+                    os.remove(glob_name)
+                    print("Deleted file because it is not in the database {}".format(glob_name))
+                elif current_url[3] is None:
+                    # The image is not classified
+                    delete_url(conn, current_url[0])
+                    os.remove(glob_name)
+                    print("Deleted file because it is not classified {}".format(glob_name))
+                elif current_url[5] != gender[args.classify_gender]:
+                    # The image does not matches the gender specified
+                    delete_url(conn, current_url[0])
+                    delete_classified(conn, current_url[0])
+                    os.remove(glob_name)
+                    print("Deleted file because it does not match the gender {}".format(glob_name))
 
 conn.close()
