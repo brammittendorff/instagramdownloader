@@ -123,6 +123,19 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
     # Login
     driver.get('https://www.instagram.com')
     driver.maximize_window()
+    
+    # Accept cookies
+    cookie_xpath = "/html/body/div[4]/div/div/button[1]"
+    cookie_element = driver.find_element_by_xpath(cookie_xpath)
+    try:
+        WebDriverWait(driver, timeout
+            ).until(EC.presence_of_element_located((By.XPATH, cookie_xpath)))
+        cookie_element.click()
+        WebDriverWait(driver, timeout
+            ).until_not(EC.presence_of_element_located((By.XPATH, cookie_xpath)))
+    except TimeoutException:
+        pass 
+
     try:
         element = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.TAG_NAME, 'form'))
@@ -139,8 +152,6 @@ if (args.url_list_dir or args.keywords) and args.save_dir:
         form_submit.click()
     except TimeoutException:
         pass
-    
-    time.sleep(2)
 
     # Scrape by hashtags
     if args.keywords:
